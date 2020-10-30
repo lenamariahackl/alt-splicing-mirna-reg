@@ -42,7 +42,7 @@ def read_in_fasta(file):
 
 # returns format {transcript_id : data} or {transcript_id : {exon_id : data}}
 def read_in_miRNA(file):
-	pickle1 = Path(file.split('.', 1)[0]+".pkl")
+	pickle1 = Path(str(file).split('.', 1)[0]+".pkl")
 	if pickle1.is_file():
 		#load from disk
 		pkl_file1 = open(pickle1, 'rb')
@@ -75,7 +75,7 @@ def append_header(fasta):
 	f.close()
 
 # read in binding site file ( file that is produced by tarpmir )
-# returns pandas DataFrame and dicts of start / end positions
+# returns pandas DataFrame
 def parse_tarp_bs(file):
 	if (open(file).readline()[0:5] != 'miRNA'):
 		append_header(file)
@@ -98,12 +98,13 @@ def parse_seq(file):
             seqs[name] = sequence
     return seqs
 
-#returns format {transcript_id : {exon_id : chromosome_start}}, {transcript_id : {exon_id : start}}, {transcript_id : {exon_id : end}}
+#returns format {transcript_id : {exon_id : chromosome_start}}, {transcript_id : {exon_id : start}}, {transcript_id : {exon_id : end}}, pandas DataFrame [exon_id, transcript_id, chrom_exon_start, chrom_exon_end]
 def calc_exon_data(path):
 	pickle0 = Path(path/"chrom_exon_starts.pkl")
 	pickle1 = Path(path/"exon_starts.pkl")
 	pickle2 = Path(path/"exon_ends.pkl")
-	if pickle0.is_file() and pickle1.is_file() and pickle2.is_file():
+	feather_file = Path(path/'exon_info.feather')
+	if pickle0.is_file() and pickle1.is_file() and pickle2.is_file() and feather_file.is_file():
 		#load files from disk
 		pkl_file0 = open(pickle0, 'rb')
 		chrom_exon_starts = pickle.load(pkl_file0)
@@ -114,17 +115,20 @@ def calc_exon_data(path):
 		pkl_file2 = open(pickle2, 'rb')
 		exon_ends = pickle.load(pkl_file2)
 		pkl_file2.close()
+		exon_info = pd.read_feather(feather_file)
 	else:
 		chrom_exon_starts = read_in_fasta(path/'all_exon_start.fasta')
 		chrom_exon_ends = read_in_fasta(path/'all_exon_end.fasta')
 		exon_starts = {}
 		exon_ends = {}
+		exon_info = {}
 		for tid in chrom_exon_starts:
 			last_exon_end = 0
 			sorted_ = {k: v for k, v in sorted(chrom_exon_starts[tid].items(), key=lambda item: item[1])}
 			for eid in sorted_:
 				chrom_exon_start = chrom_exon_starts[tid][eid]
 				chrom_exon_end = chrom_exon_ends[tid][eid]
+				exon_info[eid] = [tid, chrom_exon_start, chrom_exon_end]
 				if chrom_exon_end - chrom_exon_start < 0:
 					print('Error: difference is negative! start of',tid,'is bigger than end!')
 				exon_starts[tid] = exon_starts.get(tid,{})
@@ -135,6 +139,8 @@ def calc_exon_data(path):
 				exon_starts[tid][eid] = exon_start
 				exon_ends[tid][eid] = exon_end
 				#write to disk
+		exon_info = pd.DataFrame.from_dict(exon_info, orient='index', columns=['transcript_id','chrom_exon_start', 'chrom_exon_end']).reset_index()
+		exon_info = exon_info.rename(columns={'index': "exon_id"})
 		f = open(pickle0,"wb")
 		pickle.dump(chrom_exon_starts,f)
 		f.close()
@@ -144,15 +150,5 @@ def calc_exon_data(path):
 		f = open(pickle2,"wb")
 		pickle.dump(exon_ends,f)
 		f.close()
-	return chrom_exon_starts, exon_starts, exon_ends
-
-# returns format {miRNA mature name : miRNA family name}
-def read_in_mirna_families(file):
-	file = open(file,'r').readlines()
-	dict_ = {}
-	for id_, line in enumerate(file):
-		if line[0] == '>':
-			mature_name = line[1:][:-1]
-			family = file[id_+1][:-1]
-			dict_[mature_name] = family
-	return pd.DataFrame.from_dict(dict_,columns=['miRNA family name'],orient='index')
+		exon_info.to_feather(feather_file)
+	return chrom_exon_starts, exon_starts, exon_ends, exon_info
