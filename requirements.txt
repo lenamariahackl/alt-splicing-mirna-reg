@@ -1,2 +1,2 @@
-gffutils
-xenaPython
+pyarrow
+cython
