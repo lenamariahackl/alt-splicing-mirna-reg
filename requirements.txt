@@ -1,2 +1,3 @@
 pyarrow
 cython
+scikit-learn
