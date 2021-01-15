@@ -31,7 +31,7 @@ We combine filtered (exon, miRNA) binding pairings from both TarPmiR predictions
 
 ## Execution
 ### Phase 1: Prediction of binding sites from sequence using TarPmiR
-Parallel execution of TarPmiR for the 249.740 mRNA sequences and 2.656 human miRNA sequences on a cluster of 80 cores with 1.5 TB RAM takes about 10 days. The output files were read into python and combined into pandas DataFrame with 983.499.270 rows of around 130 GB in memory and saved to bs_tarp_all.parquet. By default the existing data is used instead of recomputing.
+Parallel execution of TarPmiR for the 249.740 mRNA sequences and 2.656 human miRNA sequences on a cluster of 80 cores with 1.5 TB RAM takes about 10 days. The output files were read into python and combined into pandas DataFrame with 983.499.270 rows of around 130 GB in memory. The data is too big to be uploaded to git, but can be requested on lenamariahackl@gmail.com.
 
 ### Phase 2: Prediction of binding sites from expression using Elastic net regression
 In the first notebook cell both path and disease, that we want to analyse the expression of, can be changed. Then the pipeline can be executed step-by-step. The training of the miRNA-level elastic net regression models requires around 6 hours per 100 models depending on the amount of input. Figures are produced and automatically saved in path/disease/'plots'.
